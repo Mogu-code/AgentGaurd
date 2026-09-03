@@ -1,0 +1,81 @@
+{
+  "selected_model": "random_forest",
+  "results": {
+    "naive_threshold_baseline": {
+      "precision": 0.37579617834394907,
+      "recall": 0.7496823379923762,
+      "f1": 0.5006364022061943,
+      "confusion_matrix": {
+        "tn": 3046,
+        "fp": 980,
+        "fn": 197,
+        "tp": 590
+      },
+      "false_positive_rate": 0.24341778440139095,
+      "false_negative_rate": 0.2503176620076239,
+      "financial": {
+        "value_correctly_blocked_inr": 6670580.66,
+        "value_incorrectly_blocked_inr_fp_cost": 2038885.6,
+        "value_missed_inr_fn_cost": 333780.92
+      }
+    },
+    "logistic_regression": {
+      "precision": 0.5211726384364821,
+      "recall": 0.8132147395171537,
+      "f1": 0.6352357320099256,
+      "roc_auc": 0.9388823347100265,
+      "confusion_matrix": {
+        "tn": 3438,
+        "fp": 588,
+        "fn": 147,
+        "tp": 640
+      },
+      "false_positive_rate": 0.14605067064083457,
+      "false_negative_rate": 0.18678526048284624,
+      "financial": {
+        "value_correctly_blocked_inr": 6792132.65,
+        "value_incorrectly_blocked_inr_fp_cost": 1323139.0,
+        "value_missed_inr_fn_cost": 212228.93
+      },
+      "val_f1": 0.6460446247464503
+    },
+    "random_forest": {
+      "precision": 0.6854190585533869,
+      "recall": 0.758576874205845,
+      "f1": 0.7201447527141134,
+      "roc_auc": 0.9537854643672545,
+      "confusion_matrix": {
+        "tn": 3752,
+        "fp": 274,
+        "fn": 190,
+        "tp": 597
+      },
+      "false_positive_rate": 0.06805762543467461,
+      "false_negative_rate": 0.241423125794155,
+      "financial": {
+        "value_correctly_blocked_inr": 6703432.23,
+        "value_incorrectly_blocked_inr_fp_cost": 600453.98,
+        "value_missed_inr_fn_cost": 300929.35
+      },
+      "val_f1": 0.7451690821256038
+    },
+    "isolation_forest_unsupervised": {
+      "precision": 0.5607843137254902,
+      "recall": 0.5451080050825922,
+      "f1": 0.5528350515463918,
+      "confusion_matrix": {
+        "tn": 3690,
+        "fp": 336,
+        "fn": 358,
+        "tp": 429
+      },
+      "false_positive_rate": 0.08345752608047691,
+      "false_negative_rate": 0.4548919949174079,
+      "financial": {
+        "value_correctly_blocked_inr": 4878555.67,
+        "value_incorrectly_blocked_inr_fp_cost": 713754.11,
+        "value_missed_inr_fn_cost": 2125805.91
+      }
+    }
+  }
+}
