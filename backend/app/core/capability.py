@@ -23,6 +23,7 @@ class AgentCapability:
     max_quantity: int
     allowed_categories: List[str]
     blocked_merchants: List[str] = field(default_factory=list)
+    authorized_merchant: Optional[str] = None  # if the user named a specific merchant, only THIS merchant is authorized
     approval_threshold: Optional[float] = None  # amount above which STEP_UP is required even if under max_amount
     max_daily_spend: Optional[float] = None
     expires_at: Optional[datetime] = None

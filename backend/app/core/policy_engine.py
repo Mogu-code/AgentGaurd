@@ -111,6 +111,17 @@ def evaluate_policy(
             "hard",
         ))
 
+    # 4b. Merchant substitution: if the user named a specific merchant at authorization
+    # time, the agent may ONLY pay that merchant — this is a hard violation, not a soft
+    # ML signal, because paying an unnamed merchant is exactly the "agent pays a
+    # different merchant than approved" threat this system exists to stop.
+    if cap.authorized_merchant and req.merchant != cap.authorized_merchant:
+        violations.append(PolicyViolation(
+            "MERCHANT_SUBSTITUTION",
+            f"Authorized merchant is '{cap.authorized_merchant}' but request targets '{req.merchant}'.",
+            "hard",
+        ))
+
     # 5. Category restriction
     if cap.allowed_categories and req.category not in cap.allowed_categories:
         violations.append(PolicyViolation(

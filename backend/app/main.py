@@ -12,6 +12,7 @@ Run:
   uvicorn backend.app.main:app --reload --port 8000
 """
 from __future__ import annotations
+import httpx
 import time
 import uuid
 from datetime import datetime
@@ -95,7 +96,7 @@ def health_razorpay():
         # Check Razorpay reachability (Orders API with test keys)
         try:
             client = get_razorpay_client()
-            if not getattr(client, 'used_mock', True):
+            if not getattr(client, 'used_mock', False):
                 # fetch order list to test auth without creating an order
                 from backend.app.razorpay_client import RAZORPAY_BASE_URL
                 resp = httpx.get(f"{RAZORPAY_BASE_URL}/orders", auth=client.auth, timeout=3.0, params={"count": 1})
@@ -265,6 +266,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 import json
+import httpx
 
 @app.get("/metrics")
 def get_metrics():

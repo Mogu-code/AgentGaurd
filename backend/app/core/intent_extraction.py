@@ -67,6 +67,13 @@ def extract_intent_rule_based(nl_text: str, user_id: str, agent_id: str, capabil
 
     approval_threshold = max_amount * 0.7  # anything above 70% of the max requires step-up by default
 
+    # merchant: "from <Name>" / "on <Name>" / "at <Name>" — simple pattern, good enough
+    # for the demo scenarios; a real NLU pass (LLM) does this more robustly.
+    merchant = None
+    merchant_match = re.search(r"\b(?:from|on|at)\s+([A-Z][a-zA-Z0-9&.\- ]{1,30}?)(?:\s+for|\s+no|\s+under|,|\.|\s*$)", nl_text)
+    if merchant_match:
+        merchant = merchant_match.group(1).strip()
+
     return AgentCapability(
         capability_id=capability_id,
         user_id=user_id,
@@ -75,6 +82,7 @@ def extract_intent_rule_based(nl_text: str, user_id: str, agent_id: str, capabil
         max_quantity=max(quantity, 1),
         allowed_categories=[category],
         blocked_merchants=[],
+        authorized_merchant=merchant,
         approval_threshold=approval_threshold,
         max_daily_spend=max_amount * 1.5,
         expires_at=None,
@@ -87,6 +95,7 @@ class LLMIntentSchema(BaseModel):
     max_quantity: int
     allowed_categories: list[str]
     blocked_merchants: list[str]
+    authorized_merchant: Optional[str] = None
 
 def extract_intent_llm(nl_text: str, user_id: str, agent_id: str, capability_id: str) -> dict:
     """Attempts to use Ollama LLM to extract intent."""
@@ -101,7 +110,8 @@ Output ONLY valid JSON matching this schema:
   "max_amount": float,
   "max_quantity": int,
   "allowed_categories": ["string"],
-  "blocked_merchants": ["string"]
+  "blocked_merchants": ["string"],
+  "authorized_merchant": "string or null (the ONE merchant named in the request, if any)"
 }}
 
 Request: "{nl_text}"
@@ -135,6 +145,7 @@ Request: "{nl_text}"
             max_quantity=max(validated.max_quantity, 1),
             allowed_categories=validated.allowed_categories,
             blocked_merchants=validated.blocked_merchants,
+            authorized_merchant=validated.authorized_merchant,
             approval_threshold=approval_threshold,
             max_daily_spend=max_daily_spend,
             expires_at=None,

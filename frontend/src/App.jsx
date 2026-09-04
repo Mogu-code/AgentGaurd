@@ -391,6 +391,7 @@ function App() {
               <div className="data-row"><span className="data-label text-green">Maximum quantity</span><span className="data-value">IMPLEMENTED</span></div>
               <div className="data-row"><span className="data-label text-green">Allowed categories</span><span className="data-value">IMPLEMENTED</span></div>
               <div className="data-row"><span className="data-label text-green">Blocked merchants</span><span className="data-value">IMPLEMENTED</span></div>
+              <div className="data-row"><span className="data-label text-green">Authorized merchant lock</span><span className="data-value text-green font-bold">IMPLEMENTED</span></div>
               <div className="data-row"><span className="data-label text-green">Replay protection</span><span className="data-value">IMPLEMENTED</span></div>
               <div className="data-row"><span className="data-label text-secondary">Geofencing</span><span className="data-value text-secondary">NOT CONFIGURED</span></div>
             </div>
@@ -511,6 +512,9 @@ function InvestigationView({ result, scenario }) {
             <div className="flow-header">03 Agent Capability</div>
             <div className="data-row"><span className="data-label">Authorized Amount</span><span className="data-value">₹{ext.capability?.max_amount?.toLocaleString() || '70,000'}</span></div>
             <div className="data-row"><span className="data-label">Authorized Quantity</span><span className="data-value">{ext.capability?.max_quantity || '1'}</span></div>
+            {ext.capability?.authorized_merchant && (
+              <div className="data-row"><span className="data-label">Authorized Merchant</span><span className="data-value text-green">{ext.capability.authorized_merchant}</span></div>
+            )}
           </div>
         </div>
       </div>
