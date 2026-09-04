@@ -171,7 +171,7 @@ def evaluate(req: PaymentActionRequest):
     explanation = build_explanation(payment_req, decision)
     explanation["razorpay"] = razorpay_result
 
-    audit_record = AUDIT.append({
+    payload = {
         "event": "PAYMENT_DECISION",
         "request": {
             "request_id": payment_req.request_id, "session_id": req.session_id,
@@ -181,7 +181,12 @@ def evaluate(req: PaymentActionRequest):
         "policy_violations": [v.__dict__ for v in violations],
         "ml_result": {k: v for k, v in ml_result.items() if k != "features"},
         "decision": explanation,
-    })
+    }
+    audit_record = AUDIT.append(payload)
+    
+    audit_record["request"] = payload["request"]
+    audit_record["policy_violations"] = payload["policy_violations"]
+    audit_record["ml_result"] = payload["ml_result"]
     explanation["audit"] = audit_record
 
     return explanation
@@ -199,3 +204,154 @@ def get_audit(limit: int = 50):
 @app.get("/guard/audit/verify")
 def verify_audit():
     return AUDIT.verify_chain()
+
+
+class TestExtractionRequest(BaseModel):
+    nl_text: str
+
+@app.post("/guard/test_extraction")
+def test_extraction(req: TestExtractionRequest):
+    capability_id = f"cap_test_{uuid.uuid4().hex[:6]}"
+    result = extract_intent(req.nl_text, "test_user", "test_agent", capability_id)
+    return result
+
+
+import json
+import os
+
+@app.get("/metrics")
+def get_metrics():
+    metrics_path = os.path.join(os.path.dirname(__file__), "ml", "artifacts", "metrics.json")
+    if os.path.exists(metrics_path):
+        with open(metrics_path, "r") as f:
+            return json.load(f)
+    return {"error": "Metrics not found. Run ML training first."}
+
+
+@app.get("/agents")
+def get_agents():
+    # Return mock agents for the demo
+    return [
+        {"id": "agent_042", "name": "Shopping Assistant", "status": "active"},
+        {"id": "agent_117", "name": "Travel Booker", "status": "active"},
+    ]
+
+
+@app.get("/policies/{policy_id}")
+def get_policy(policy_id: str):
+    cap = CAPABILITIES.get(policy_id)
+    if not cap:
+        raise HTTPException(status_code=404, detail="Policy not found")
+    # Using asdict is not available here directly without import, but cap is a dataclass
+    from dataclasses import asdict
+    return asdict(cap)
+
+@app.get("/transactions")
+def get_transactions(limit: int = 50):
+    return AUDIT.all_records(limit=limit)
+
+@app.post("/simulation/{scenario}")
+def simulate_attack(scenario: str):
+    """
+    Simulates an attack by generating a PaymentActionRequest and running it 
+    through the real evaluate pipeline.
+    """
+    # 1. Ensure we have a base capability for the demo user
+    session_id = "sim_session"
+    cap_id = "sim_cap"
+    user_id = "demo_user"
+    
+    if cap_id not in CAPABILITIES:
+        from backend.app.core.capability import AgentCapability
+        cap = AgentCapability(
+            capability_id=cap_id,
+            user_id=user_id,
+            agent_id="sim_agent",
+            max_amount=70000.0,
+            max_quantity=1,
+            allowed_categories=["electronics", "office supplies"],
+            blocked_merchants=[],
+            approval_threshold=70000.0 * 0.7,
+            max_daily_spend=150000.0,
+            expires_at=None,
+            version=1
+        )
+        CAPABILITIES[cap_id] = cap
+        
+        SESSION_STATS[session_id] = {
+            "capability_id": cap_id,
+            "tool_calls": 0,
+            "start_time": time.time(),
+            "hist_avg_amount": 35000.0,
+            "known_merchants": ["Amazon", "Flipkart"],
+        }
+    
+    # Generate the request based on scenario
+    if scenario == "legitimate":
+        req = PaymentActionRequest(
+            session_id=session_id,
+            capability_id=cap_id,
+            amount=68500.0,
+            quantity=1,
+            category="electronics",
+            merchant="Amazon",
+            merchant_known=True,
+            idempotency_key=f"idempotency_{uuid.uuid4().hex[:6]}"
+        )
+    elif scenario == "amount_manipulation":
+        req = PaymentActionRequest(
+            session_id=session_id,
+            capability_id=cap_id,
+            amount=185000.0,  # exceeds max_amount
+            quantity=1,
+            category="electronics",
+            merchant="Amazon",
+            merchant_known=True,
+            idempotency_key=f"idempotency_{uuid.uuid4().hex[:6]}"
+        )
+    elif scenario == "quantity_velocity":
+        req = PaymentActionRequest(
+            session_id=session_id,
+            capability_id=cap_id,
+            amount=65000.0,
+            quantity=3,  # exceeds max_quantity
+            category="electronics",
+            merchant="Amazon",
+            merchant_known=True,
+            idempotency_key=f"idempotency_{uuid.uuid4().hex[:6]}"
+        )
+        # artificially boost tool calls to trigger velocity anomaly
+        SESSION_STATS[session_id]["tool_calls"] += 15
+    elif scenario == "replay":
+        idem_key = "fixed_replay_key_123"
+        # First call to register the idempotency key (if not already there)
+        # We will directly run the request to get the block result
+        req = PaymentActionRequest(
+            session_id=session_id,
+            capability_id=cap_id,
+            amount=50000.0,
+            quantity=1,
+            category="electronics",
+            merchant="Amazon",
+            merchant_known=True,
+            idempotency_key=idem_key
+        )
+        # Pre-populate the idempotency cache for the replay attack
+        VELOCITY_STORE.record_idempotency_key(idem_key, f"req_previous_{uuid.uuid4().hex[:6]}")
+    elif scenario == "llm_manipulation":
+        # Agent receives malicious instruction to ignore limit and buy 3 laptops for 190000
+        req = PaymentActionRequest(
+            session_id=session_id,
+            capability_id=cap_id,
+            amount=190000.0,
+            quantity=3,
+            category="electronics",
+            merchant="UnknownMerchant",
+            merchant_known=False,
+            idempotency_key=f"idempotency_{uuid.uuid4().hex[:6]}"
+        )
+    else:
+        raise HTTPException(status_code=400, detail="Unknown scenario")
+        
+    # Run through the real pipeline
+    return evaluate(req)

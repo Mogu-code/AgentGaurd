@@ -47,15 +47,17 @@ python data/generate_synthetic_data.py --n 25000 --out data/synthetic_events.csv
 # 2. Train + evaluate the ML risk model (writes real metrics, no fabrication)
 python -m backend.app.ml.train --data data/synthetic_events.csv --out backend/app/ml/artifacts
 
-# 3. Run the reproducible end-to-end demo scenarios (in-process, no server needed)
-python scripts/run_demo_scenarios.py
-
-# 4. Run unit tests
+# 3. Run unit tests
 python -m pytest tests/ -q
 
-# 5. Start the API server
+# 4. Start the API server
 uvicorn backend.app.main:app --reload --port 8000
 # then see interactive docs at http://localhost:8000/docs
+
+# 5. Start the Frontend UI
+cd frontend
+npm install
+npm run dev
 ```
 
 ## What's implemented right now
@@ -63,28 +65,22 @@ uvicorn backend.app.main:app --reload --port 8000
 - Deterministic policy engine (amount/quantity/category/merchant/daily-spend/replay/velocity/expiry)
 - Supervised ML risk model (Random Forest, selected over Logistic Regression by validation F1)
   + unsupervised Isolation Forest behavioral-anomaly channel, trained on a
-  reproducible 24k-event synthetic dataset with real held-out test metrics
+  reproducible 24k-event synthetic dataset with real held-out test metrics and ablation studies.
 - Decision engine combining both, with a published, fixed threshold hierarchy
-- Rule-based intent extraction (NL authorization -> structured `AgentCapability`),
-  designed with a swap point for a real LLM call without changing the
-  downstream architecture
+- **Ollama LLM (qwen3:4b)** intent extraction (NL authorization -> structured `AgentCapability`), with a deterministic regex/rule-based fallback.
 - Hash-chained, tamper-evident audit log with a `/guard/audit/verify` endpoint
 - Razorpay test-mode client with automatic fallback to a mock client, and
   explicit timeout handling (PENDING, no blind retry) matching real
   payment-system failure semantics
+- **Frontend Dashboard** built with React + Vite, including a live Attack Simulator and ML Analytics UI.
 - 5 reproducible end-to-end scenarios (legit ALLOW, amount manipulation BLOCK,
-  quantity+velocity manipulation BLOCK, replay BLOCK, timeout -> PENDING)
-- 18 passing unit tests
+  quantity+velocity manipulation BLOCK, replay BLOCK, prompt injection BLOCK)
+- Passing unit tests
 
 ## What's NOT implemented yet
 
-- Frontend dashboard (backend/ML pipeline was prioritized per the build plan —
-  see `docs/DEMO_SCRIPT.md` and the "Next steps" section below)
-- Multi-process/Redis-backed velocity store (current store is process-local,
-  fine for a single-instance demo)
-- Real LLM-based intent extraction (rule-based extractor is used by default;
-  swap point is documented in `backend/app/core/intent_extraction.py`)
 - Postgres persistence for capabilities/sessions (currently in-memory + SQLite audit log only)
+- Multi-process/Redis-backed velocity store (current store is process-local, fine for a single-instance demo)
 
 See `docs/ARCHITECTURE.md` §"Known limitations" for the full, honest list.
 
@@ -102,5 +98,5 @@ agentpay-guard/
   scripts/            run_demo_scenarios.py
   tests/              pytest unit tests
   docs/               ARCHITECTURE.md, THREAT_MODEL.md, EVALUATION.md, API.md, DEMO_SCRIPT.md
-  frontend/           (not yet built)
+  frontend/           Vite + React UI Control Plane
 ```

@@ -76,6 +76,34 @@
         "value_incorrectly_blocked_inr_fp_cost": 713754.11,
         "value_missed_inr_fn_cost": 2125805.91
       }
+    },
+    "ablation_no_behavioral": {
+      "precision": 0.4380053908355795,
+      "recall": 0.8259212198221093,
+      "f1": 0.5724350506384852,
+      "roc_auc": 0.8879522620122949,
+      "confusion_matrix": {
+        "tn": 3192,
+        "fp": 834,
+        "fn": 137,
+        "tp": 650
+      },
+      "false_positive_rate": 0.20715350223546944,
+      "false_negative_rate": 0.17407878017789072
+    },
+    "ablation_no_merchant": {
+      "precision": 1.0,
+      "recall": 0.6988564167725541,
+      "f1": 0.8227374719521316,
+      "roc_auc": 0.853082662818743,
+      "confusion_matrix": {
+        "tn": 4026,
+        "fp": 0,
+        "fn": 237,
+        "tp": 550
+      },
+      "false_positive_rate": 0.0,
+      "false_negative_rate": 0.301143583227446
     }
   }
 }

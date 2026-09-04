@@ -136,6 +136,28 @@ def main():
     )
     results["isolation_forest_unsupervised"]["financial"] = financial_impact(df_test, y_test, iso_pred)
 
+    # Ablation 1: Without behavioral features
+    behavioral_cols = [X.columns.get_loc(c) for c in ["tool_calls_in_session", "session_duration_s", "retry_count"] if c in X.columns]
+    X_train_no_beh = np.delete(X_train_s, behavioral_cols, axis=1)
+    X_test_no_beh = np.delete(X_test_s, behavioral_cols, axis=1)
+    
+    rf_no_beh = RandomForestClassifier(n_estimators=200, max_depth=8, class_weight="balanced", random_state=42)
+    rf_no_beh.fit(X_train_no_beh, y_train)
+    rf_no_beh_pred = rf_no_beh.predict(X_test_no_beh)
+    rf_no_beh_score = rf_no_beh.predict_proba(X_test_no_beh)[:, 1]
+    results["ablation_no_behavioral"] = evaluate("Random Forest (No Behavioral Features)", y_test, rf_no_beh_pred, rf_no_beh_score)
+    
+    # Ablation 2: Without merchant-history features
+    merchant_cols = [X.columns.get_loc(c) for c in ["merchant_known"] if c in X.columns]
+    X_train_no_merch = np.delete(X_train_s, merchant_cols, axis=1)
+    X_test_no_merch = np.delete(X_test_s, merchant_cols, axis=1)
+    
+    rf_no_merch = RandomForestClassifier(n_estimators=200, max_depth=8, class_weight="balanced", random_state=42)
+    rf_no_merch.fit(X_train_no_merch, y_train)
+    rf_no_merch_pred = rf_no_merch.predict(X_test_no_merch)
+    rf_no_merch_score = rf_no_merch.predict_proba(X_test_no_merch)[:, 1]
+    results["ablation_no_merchant"] = evaluate("Random Forest (No Merchant Features)", y_test, rf_no_merch_pred, rf_no_merch_score)
+
     # ---- Model selection: pick the supervised model with the best VALIDATION F1
     # (test set is only touched for final reporting, never for selection) ----
     candidates = {"logistic_regression": (lr, results["logistic_regression"]["val_f1"]),

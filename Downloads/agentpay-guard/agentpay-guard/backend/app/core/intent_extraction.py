@@ -18,9 +18,13 @@ be able to review the structured result before capability activation in a
 production version.
 """
 from __future__ import annotations
+import os
 import re
+import json
+import httpx
 from dataclasses import asdict
 from typing import Optional
+from pydantic import BaseModel, ValidationError
 
 from backend.app.core.capability import AgentCapability
 
@@ -78,10 +82,97 @@ def extract_intent_rule_based(nl_text: str, user_id: str, agent_id: str, capabil
     )
 
 
+class LLMIntentSchema(BaseModel):
+    max_amount: float
+    max_quantity: int
+    allowed_categories: list[str]
+    blocked_merchants: list[str]
+
+def extract_intent_llm(nl_text: str, user_id: str, agent_id: str, capability_id: str) -> dict:
+    """Attempts to use Ollama LLM to extract intent."""
+    model = os.getenv("OLLAMA_MODEL", "qwen3:4b")
+    base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    
+    prompt = f"""
+You are an intent extraction engine for a payment gateway.
+Extract the payment constraints from the following natural language request.
+Output ONLY valid JSON matching this schema:
+{{
+  "max_amount": float,
+  "max_quantity": int,
+  "allowed_categories": ["string"],
+  "blocked_merchants": ["string"]
+}}
+
+Request: "{nl_text}"
+"""
+    try:
+        response = httpx.post(
+            f"{base_url}/api/chat",
+            json={
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "stream": False,
+                "format": "json"
+            },
+            timeout=5.0
+        )
+        response.raise_for_status()
+        result = response.json()
+        content = result.get("message", {}).get("content", "")
+        
+        parsed = json.loads(content)
+        validated = LLMIntentSchema(**parsed)
+        
+        approval_threshold = validated.max_amount * 0.7
+        max_daily_spend = validated.max_amount * 1.5
+        
+        cap = AgentCapability(
+            capability_id=capability_id,
+            user_id=user_id,
+            agent_id=agent_id,
+            max_amount=validated.max_amount,
+            max_quantity=max(validated.max_quantity, 1),
+            allowed_categories=validated.allowed_categories,
+            blocked_merchants=validated.blocked_merchants,
+            approval_threshold=approval_threshold,
+            max_daily_spend=max_daily_spend,
+            expires_at=None,
+            version=1,
+        )
+        
+        return {
+            "capability": asdict(cap),
+            "source_text": nl_text,
+            "extraction_method": "llm",
+            "provider": "ollama",
+            "model": model,
+            "success": True,
+        }
+    except (httpx.RequestError, json.JSONDecodeError, ValidationError) as e:
+        return {
+            "success": False,
+            "fallback_reason": str(e)
+        }
+
 def extract_intent(nl_text: str, user_id: str, agent_id: str, capability_id: str) -> dict:
+    llm_provider = os.getenv("LLM_PROVIDER", "ollama")
+    
+    if llm_provider == "ollama":
+        result = extract_intent_llm(nl_text, user_id, agent_id, capability_id)
+        if result.get("success"):
+            return result
+            
+        # Fallback to rule-based
+        fallback_reason = result.get("fallback_reason")
+    else:
+        fallback_reason = "LLM_PROVIDER not set to ollama"
+
     cap = extract_intent_rule_based(nl_text, user_id, agent_id, capability_id)
     return {
         "capability": asdict(cap),
         "source_text": nl_text,
         "extraction_method": "rule_based_v1",
+        "fallback": True,
+        "fallback_reason": fallback_reason
     }
