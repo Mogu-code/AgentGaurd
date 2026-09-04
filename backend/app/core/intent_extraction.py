@@ -1,0 +1,178 @@
+"""
+Intent extraction layer.
+
+Converts a one-time natural-language authorization ("Buy me a laptop for
+college, don't spend more than 70k") into a structured AgentCapability. This
+runs ONCE per session at authorization time — not per payment action — which
+is the key architectural point: the LLM's influence is confined to a single,
+human-reviewable structured output, stored immutably for the session. Every
+subsequent payment ACTION is validated against that stored capability by pure
+deterministic code (policy_engine.py), not by asking the LLM again.
+
+This MVP ships a deterministic regex/rule-based extractor by default so the
+whole pipeline runs with zero external API dependency. A real LLM call
+(Claude, via the Anthropic API) can be swapped in behind the same
+`extract_intent()` interface — see USE_LLM below — but the output MUST still
+be validated against the JSON schema before being trusted, and a human should
+be able to review the structured result before capability activation in a
+production version.
+"""
+from __future__ import annotations
+import os
+import re
+import json
+import httpx
+from dataclasses import asdict
+from typing import Optional
+from pydantic import BaseModel, ValidationError
+
+from backend.app.core.capability import AgentCapability
+
+USE_LLM = False  # flip on + implement call_llm_extractor() to use a real LLM
+
+
+def extract_intent_rule_based(nl_text: str, user_id: str, agent_id: str, capability_id: str) -> AgentCapability:
+    """Deterministic, auditable fallback extractor. Intentionally simple:
+    good enough for structured demo scenarios, not a claim of general NLU."""
+    text = nl_text.lower()
+
+    # amount: "70k", "70000", "₹70,000"
+    max_amount = 50000.0
+    amt_match = re.search(r"(\d[\d,]*)\s*k\b", text)
+    if amt_match:
+        max_amount = float(amt_match.group(1).replace(",", "")) * 1000
+    else:
+        amt_match = re.search(r"(?:₹|rs\.?|inr)\s*([\d,]+)", text)
+        if amt_match:
+            max_amount = float(amt_match.group(1).replace(",", ""))
+
+    quantity = 1
+    qty_match = re.search(r"\b(\d+)\s*(?:units|items|pieces|x)\b", text)
+    if qty_match:
+        quantity = int(qty_match.group(1))
+
+    category_keywords = {
+        "electronics": ["laptop", "phone", "electronics", "gadget", "headphone", "keyboard"],
+        "books": ["book", "textbook"],
+        "groceries": ["grocery", "groceries", "vegetable", "food"],
+        "fashion": ["shirt", "clothes", "fashion", "shoes"],
+        "subscriptions": ["subscription", "plan", "recharge"],
+        "travel": ["flight", "hotel", "travel", "ticket"],
+    }
+    category = "electronics"
+    for cat, kws in category_keywords.items():
+        if any(kw in text for kw in kws):
+            category = cat
+            break
+
+    approval_threshold = max_amount * 0.7  # anything above 70% of the max requires step-up by default
+
+    return AgentCapability(
+        capability_id=capability_id,
+        user_id=user_id,
+        agent_id=agent_id,
+        max_amount=max_amount,
+        max_quantity=max(quantity, 1),
+        allowed_categories=[category],
+        blocked_merchants=[],
+        approval_threshold=approval_threshold,
+        max_daily_spend=max_amount * 1.5,
+        expires_at=None,
+        version=1,
+    )
+
+
+class LLMIntentSchema(BaseModel):
+    max_amount: float
+    max_quantity: int
+    allowed_categories: list[str]
+    blocked_merchants: list[str]
+
+def extract_intent_llm(nl_text: str, user_id: str, agent_id: str, capability_id: str) -> dict:
+    """Attempts to use Ollama LLM to extract intent."""
+    model = os.getenv("OLLAMA_MODEL", "qwen3:4b")
+    base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    
+    prompt = f"""
+You are an intent extraction engine for a payment gateway.
+Extract the payment constraints from the following natural language request.
+Output ONLY valid JSON matching this schema:
+{{
+  "max_amount": float,
+  "max_quantity": int,
+  "allowed_categories": ["string"],
+  "blocked_merchants": ["string"]
+}}
+
+Request: "{nl_text}"
+"""
+    try:
+        response = httpx.post(
+            f"{base_url}/api/chat",
+            json={
+                "model": model,
+                "messages": [{"role": "user", "content": prompt}],
+                "stream": False,
+                "format": "json"
+            },
+            timeout=5.0
+        )
+        response.raise_for_status()
+        result = response.json()
+        content = result.get("message", {}).get("content", "")
+        
+        parsed = json.loads(content)
+        validated = LLMIntentSchema(**parsed)
+        
+        approval_threshold = validated.max_amount * 0.7
+        max_daily_spend = validated.max_amount * 1.5
+        
+        cap = AgentCapability(
+            capability_id=capability_id,
+            user_id=user_id,
+            agent_id=agent_id,
+            max_amount=validated.max_amount,
+            max_quantity=max(validated.max_quantity, 1),
+            allowed_categories=validated.allowed_categories,
+            blocked_merchants=validated.blocked_merchants,
+            approval_threshold=approval_threshold,
+            max_daily_spend=max_daily_spend,
+            expires_at=None,
+            version=1,
+        )
+        
+        return {
+            "capability": asdict(cap),
+            "source_text": nl_text,
+            "extraction_method": "llm",
+            "provider": "ollama",
+            "model": model,
+            "success": True,
+        }
+    except (httpx.RequestError, json.JSONDecodeError, ValidationError) as e:
+        return {
+            "success": False,
+            "fallback_reason": str(e)
+        }
+
+def extract_intent(nl_text: str, user_id: str, agent_id: str, capability_id: str) -> dict:
+    llm_provider = os.getenv("LLM_PROVIDER", "ollama")
+    
+    if llm_provider == "ollama":
+        result = extract_intent_llm(nl_text, user_id, agent_id, capability_id)
+        if result.get("success"):
+            return result
+            
+        # Fallback to rule-based
+        fallback_reason = result.get("fallback_reason")
+    else:
+        fallback_reason = "LLM_PROVIDER not set to ollama"
+
+    cap = extract_intent_rule_based(nl_text, user_id, agent_id, capability_id)
+    return {
+        "capability": asdict(cap),
+        "source_text": nl_text,
+        "extraction_method": "rule_based_v1",
+        "fallback": True,
+        "fallback_reason": fallback_reason
+    }

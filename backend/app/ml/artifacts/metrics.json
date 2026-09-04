@@ -1,0 +1,109 @@
+{
+  "selected_model": "logistic_regression",
+  "results": {
+    "naive_threshold_baseline": {
+      "precision": 0.37579617834394907,
+      "recall": 0.7496823379923762,
+      "f1": 0.5006364022061943,
+      "confusion_matrix": {
+        "tn": 3046,
+        "fp": 980,
+        "fn": 197,
+        "tp": 590
+      },
+      "false_positive_rate": 0.24341778440139095,
+      "false_negative_rate": 0.2503176620076239,
+      "financial": {
+        "value_correctly_blocked_inr": 6670580.66,
+        "value_incorrectly_blocked_inr_fp_cost": 2038885.6,
+        "value_missed_inr_fn_cost": 333780.92
+      }
+    },
+    "logistic_regression": {
+      "precision": 0.5323505323505323,
+      "recall": 0.8259212198221093,
+      "f1": 0.647410358565737,
+      "roc_auc": 0.9435120257083721,
+      "confusion_matrix": {
+        "tn": 3455,
+        "fp": 571,
+        "fn": 137,
+        "tp": 650
+      },
+      "false_positive_rate": 0.1418281172379533,
+      "false_negative_rate": 0.17407878017789072,
+      "financial": {
+        "value_correctly_blocked_inr": 6802954.34,
+        "value_incorrectly_blocked_inr_fp_cost": 1277298.98,
+        "value_missed_inr_fn_cost": 201407.24
+      },
+      "val_f1": 0.6479719579369053
+    },
+    "random_forest": {
+      "precision": 0.4927032661570535,
+      "recall": 0.9008894536213469,
+      "f1": 0.6370170709793351,
+      "roc_auc": 0.9550775739144102,
+      "confusion_matrix": {
+        "tn": 3296,
+        "fp": 730,
+        "fn": 78,
+        "tp": 709
+      },
+      "false_positive_rate": 0.18132141082960754,
+      "false_negative_rate": 0.09911054637865312,
+      "financial": {
+        "value_correctly_blocked_inr": 6877902.74,
+        "value_incorrectly_blocked_inr_fp_cost": 1577691.94,
+        "value_missed_inr_fn_cost": 126458.84
+      },
+      "val_f1": 0.6309204647006256
+    },
+    "isolation_forest_unsupervised": {
+      "precision": 0.44836601307189544,
+      "recall": 0.4358322744599746,
+      "f1": 0.4420103092783505,
+      "confusion_matrix": {
+        "tn": 3604,
+        "fp": 422,
+        "fn": 444,
+        "tp": 343
+      },
+      "false_positive_rate": 0.10481867858917039,
+      "false_negative_rate": 0.5641677255400254,
+      "financial": {
+        "value_correctly_blocked_inr": 3265861.71,
+        "value_incorrectly_blocked_inr_fp_cost": 900204.1,
+        "value_missed_inr_fn_cost": 3738499.87
+      }
+    },
+    "ablation_no_behavioral": {
+      "precision": 0.4342895263509006,
+      "recall": 0.8271918678526048,
+      "f1": 0.5695538057742782,
+      "roc_auc": 0.8878720969353585,
+      "confusion_matrix": {
+        "tn": 3178,
+        "fp": 848,
+        "fn": 136,
+        "tp": 651
+      },
+      "false_positive_rate": 0.21063089915548933,
+      "false_negative_rate": 0.17280813214739518
+    },
+    "ablation_no_merchant": {
+      "precision": 1.0,
+      "recall": 0.6988564167725541,
+      "f1": 0.8227374719521316,
+      "roc_auc": 0.8514651588057549,
+      "confusion_matrix": {
+        "tn": 4026,
+        "fp": 0,
+        "fn": 237,
+        "tp": 550
+      },
+      "false_positive_rate": 0.0,
+      "false_negative_rate": 0.301143583227446
+    }
+  }
+}

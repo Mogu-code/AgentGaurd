@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.pyc
+backend/app/db/agentpay.db
+tests/_test_audit.db
+.pytest_cache/
+node_modules/
+*.egg-info/
+.DS_Store
