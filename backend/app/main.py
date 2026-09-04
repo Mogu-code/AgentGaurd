@@ -62,8 +62,52 @@ class PaymentActionRequest(BaseModel):
 
 
 @app.get("/health")
-def health():
-    return {"status": "ok", "ml_model_available": RISK_MODEL.available, "model_name": RISK_MODEL.model_name}
+def health_check():
+    return {"status": "ok", "version": "0.1.0"}
+
+@app.get("/health/llm")
+def health_llm():
+    provider = os.getenv("LLM_PROVIDER", "ollama")
+    model = os.getenv("OLLAMA_MODEL", "qwen3:4b")
+    # Quick connectivity check
+    available = False
+    if provider == "ollama":
+        base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        try:
+            resp = httpx.get(base_url, timeout=2.0)
+            available = resp.status_code == 200
+        except Exception:
+            available = False
+    return {
+        "provider": provider,
+        "model": model,
+        "available": available
+    }
+
+@app.get("/health/razorpay")
+def health_razorpay():
+    mode = get_razorpay_mode()
+    key_id = os.getenv("RAZORPAY_KEY_ID")
+    configured = bool(key_id and os.getenv("RAZORPAY_KEY_SECRET"))
+    reachable = False
+    
+    if mode == "test" and configured:
+        # Check Razorpay reachability (Orders API with test keys)
+        try:
+            client = get_razorpay_client()
+            if not getattr(client, 'used_mock', True):
+                # fetch order list to test auth without creating an order
+                from backend.app.razorpay_client import RAZORPAY_BASE_URL
+                resp = httpx.get(f"{RAZORPAY_BASE_URL}/orders", auth=client.auth, timeout=3.0, params={"count": 1})
+                reachable = resp.status_code == 200
+        except Exception:
+            reachable = False
+            
+    return {
+        "configured": configured,
+        "mode": mode,
+        "reachable": reachable
+    }
 
 
 @app.post("/guard/authorize")
@@ -217,8 +261,10 @@ def test_extraction(req: TestExtractionRequest):
     return result
 
 
-import json
 import os
+from dotenv import load_dotenv
+load_dotenv()
+import json
 
 @app.get("/metrics")
 def get_metrics():
@@ -262,23 +308,18 @@ def simulate_attack(scenario: str):
     cap_id = "sim_cap"
     user_id = "demo_user"
     
-    if cap_id not in CAPABILITIES:
-        from backend.app.core.capability import AgentCapability
-        cap = AgentCapability(
-            capability_id=cap_id,
-            user_id=user_id,
-            agent_id="sim_agent",
-            max_amount=70000.0,
-            max_quantity=1,
-            allowed_categories=["electronics", "office supplies"],
-            blocked_merchants=[],
-            approval_threshold=70000.0 * 0.7,
-            max_daily_spend=150000.0,
-            expires_at=None,
-            version=1
-        )
-        CAPABILITIES[cap_id] = cap
-        
+    # 1. Run ACTUAL extraction flow to get the capability dynamically
+    # This prevents the UI from faking the Ollama result.
+    nl_intent = "Buy a laptop from Amazon for no more than 70k."
+    extraction_result = extract_intent(nl_intent, user_id, "sim_agent", cap_id)
+    
+    # Register the dynamically created capability
+    cap_data = extraction_result.get("capability")
+    from backend.app.core.capability import AgentCapability
+    cap = AgentCapability(**cap_data)
+    CAPABILITIES[cap_id] = cap
+    
+    if session_id not in SESSION_STATS:
         SESSION_STATS[session_id] = {
             "capability_id": cap_id,
             "tool_calls": 0,
@@ -321,8 +362,10 @@ def simulate_attack(scenario: str):
             merchant_known=True,
             idempotency_key=f"idempotency_{uuid.uuid4().hex[:6]}"
         )
-        # artificially boost tool calls to trigger velocity anomaly
+        # artificially boost tool calls and lower session duration to trigger velocity anomaly
+        # Velocity = time / calls. We want extremely low velocity time to trigger anomaly.
         SESSION_STATS[session_id]["tool_calls"] += 15
+        SESSION_STATS[session_id]["start_time"] = time.time() - 2.0  # Session is only 2 seconds old!
     elif scenario == "replay":
         idem_key = "fixed_replay_key_123"
         # First call to register the idempotency key (if not already there)
@@ -368,20 +411,7 @@ def simulate_attack(scenario: str):
     # Run through the real pipeline
     result = evaluate(req)
     
-    # Attach mock extraction details for the UI demo since we bypass /authorize here
-    result["extraction"] = {
-        "original_intent": "Buy a laptop from Amazon for no more than 70k.",
-        "structured_intent": {
-            "max_amount": 70000.0,
-            "max_quantity": 1,
-            "allowed_categories": ["electronics", "office supplies"],
-            "blocked_merchants": []
-        },
-        "provider": "ollama",
-        "model": "qwen3:4b",
-        "method": "llm",
-        "validation_status": "success",
-        "fallback": False
-    }
+    # Attach the REAL extraction result instead of hardcoded values
+    result["extraction"] = extraction_result
     
     return result
