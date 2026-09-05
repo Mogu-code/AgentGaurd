@@ -69,7 +69,7 @@ def health_check():
 @app.get("/health/llm")
 def health_llm():
     provider = os.getenv("LLM_PROVIDER", "ollama")
-    model = os.getenv("OLLAMA_MODEL", "qwen3:4b")
+    model = os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b")
     # Quick connectivity check
     available = False
     if provider == "ollama":

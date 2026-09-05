@@ -107,3 +107,25 @@ def test_expired_capability():
     req = make_req(timestamp=datetime(2026, 1, 1))
     v = evaluate_policy(req, cap, VelocityStore())
     assert any(x.code == "CAPABILITY_EXPIRED" for x in v)
+
+
+def test_merchant_substitution_violation():
+    cap = make_cap(authorized_merchant="Amazon")
+    req = make_req(merchant="BestBuy")
+    v = evaluate_policy(req, cap, VelocityStore())
+    assert has_hard_violation(v)
+    assert any(x.code == "MERCHANT_SUBSTITUTION" for x in v)
+
+
+def test_merchant_substitution_matching():
+    cap = make_cap(authorized_merchant="Amazon")
+    req = make_req(merchant="Amazon")
+    v = evaluate_policy(req, cap, VelocityStore())
+    assert not any(x.code == "MERCHANT_SUBSTITUTION" for x in v)
+
+
+def test_merchant_substitution_unrestricted():
+    cap = make_cap(authorized_merchant=None)
+    req = make_req(merchant="AnyStore")
+    v = evaluate_policy(req, cap, VelocityStore())
+    assert not any(x.code == "MERCHANT_SUBSTITUTION" for x in v)

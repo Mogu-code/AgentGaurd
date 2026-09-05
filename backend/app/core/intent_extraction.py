@@ -99,7 +99,7 @@ class LLMIntentSchema(BaseModel):
 
 def extract_intent_llm(nl_text: str, user_id: str, agent_id: str, capability_id: str) -> dict:
     """Attempts to use Ollama LLM to extract intent."""
-    model = os.getenv("OLLAMA_MODEL", "qwen3:4b")
+    model = os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b")
     base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     
     prompt = f"""
@@ -117,7 +117,7 @@ Output ONLY valid JSON matching this schema:
 Request: "{nl_text}"
 """
     try:
-        timeout_s = float(os.getenv("OLLAMA_TIMEOUT_S", "120.0"))
+        timeout_s = float(os.getenv("OLLAMA_TIMEOUT_S", "60.0"))
         response = httpx.post(
             f"{base_url}/api/chat",
             json={
@@ -161,7 +161,7 @@ Request: "{nl_text}"
             "model": model,
             "success": True,
         }
-    except (httpx.RequestError, json.JSONDecodeError, ValidationError) as e:
+    except Exception as e:
         return {
             "success": False,
             "fallback_reason": str(e)

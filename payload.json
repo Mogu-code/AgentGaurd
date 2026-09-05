@@ -1,0 +1,1 @@
+{"model":"qwen3:4b","messages":[{"role":"user","content":"Extract JSON: Buy a laptop from Amazon for no more than 70k. Return only JSON with max_amount, max_quantity, allowed_categories, blocked_merchants, authorized_merchant."}],"stream":false,"format":"json"}
