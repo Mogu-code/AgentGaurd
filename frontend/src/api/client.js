@@ -15,7 +15,7 @@ export const fetchHealth = async () => {
     return {
       backend,
       ollama: llmData.available || false,
-      ollamaModel: llmData.model || 'qwen3:4b',
+      ollamaModel: llmData.model || 'qwen2.5:1.5b',
       razorpayMode: rzpData.mode || 'mock',
       razorpayReachable: rzpData.reachable || false
     };

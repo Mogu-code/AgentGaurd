@@ -22,7 +22,7 @@ def run_checks():
     
     # 2. Ollama
     ollama_ok = False
-    model_name = os.getenv("OLLAMA_MODEL", "qwen3:4b")
+    model_name = os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b")
     try:
         resp = httpx.get("http://127.0.0.1:8000/health/llm", timeout=2.0)
         if resp.status_code == 200:

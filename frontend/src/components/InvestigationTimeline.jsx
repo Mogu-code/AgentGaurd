@@ -45,7 +45,7 @@ export function InvestigationTimeline({ result, scenario }) {
               <span>02 LLM Extraction</span>
               <span className={`badge ${ext.success ? 'badge-green' : 'badge-amber'}`}>{ext.success ? 'VALIDATED' : 'FALLBACK'}</span>
             </div>
-            <div className="data-row"><span className="data-label">Provider / Model</span><span className="data-value">{ext.provider || 'ollama'} / {ext.model || 'qwen3:4b'}</span></div>
+            <div className="data-row"><span className="data-label">Provider / Model</span><span className="data-value">{ext.provider || 'ollama'} / {ext.model || 'qwen2.5:1.5b'}</span></div>
             <div className="data-row"><span className="data-label">Extraction Method</span><span className="data-value">{ext.extraction_method === 'llm' ? 'Generative AI' : 'Rule-Based Fallback'}</span></div>
           </div>
         </div>

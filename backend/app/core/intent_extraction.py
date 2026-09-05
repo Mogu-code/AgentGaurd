@@ -90,19 +90,25 @@ def extract_intent_rule_based(nl_text: str, user_id: str, agent_id: str, capabil
     )
 
 
-class LLMIntentSchema(BaseModel):
+from typing import Protocol
+
+class PaymentIntent(BaseModel):
     max_amount: float
     max_quantity: int
     allowed_categories: list[str]
     blocked_merchants: list[str]
     authorized_merchant: Optional[str] = None
 
-def extract_intent_llm(nl_text: str, user_id: str, agent_id: str, capability_id: str) -> dict:
-    """Attempts to use Ollama LLM to extract intent."""
-    model = os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b")
-    base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    
-    prompt = f"""
+class IntentExtractorProvider(Protocol):
+    def extract(self, nl_text: str) -> PaymentIntent:
+        ...
+
+class OllamaProvider:
+    def extract(self, nl_text: str) -> PaymentIntent:
+        model = os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b")
+        base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        
+        prompt = f"""
 You are an intent extraction engine for a payment gateway.
 Extract the payment constraints from the following natural language request.
 Output ONLY valid JSON matching this schema:
@@ -116,7 +122,6 @@ Output ONLY valid JSON matching this schema:
 
 Request: "{nl_text}"
 """
-    try:
         timeout_s = float(os.getenv("OLLAMA_TIMEOUT_S", "60.0"))
         response = httpx.post(
             f"{base_url}/api/chat",
@@ -133,52 +138,62 @@ Request: "{nl_text}"
         content = result.get("message", {}).get("content", "")
         
         parsed = json.loads(content)
-        validated = LLMIntentSchema(**parsed)
+        return PaymentIntent(**parsed)
+
+class AnthropicProvider:
+    def extract(self, nl_text: str) -> PaymentIntent:
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise ValueError("ANTHROPIC_API_KEY not set")
         
-        approval_threshold = validated.max_amount * 0.7
-        max_daily_spend = validated.max_amount * 1.5
-        
-        cap = AgentCapability(
-            capability_id=capability_id,
-            user_id=user_id,
-            agent_id=agent_id,
-            max_amount=validated.max_amount,
-            max_quantity=max(validated.max_quantity, 1),
-            allowed_categories=validated.allowed_categories,
-            blocked_merchants=validated.blocked_merchants,
-            authorized_merchant=validated.authorized_merchant,
-            approval_threshold=approval_threshold,
-            max_daily_spend=max_daily_spend,
-            expires_at=None,
-            version=1,
-        )
-        
-        return {
-            "capability": asdict(cap),
-            "source_text": nl_text,
-            "extraction_method": "llm",
-            "provider": "ollama",
-            "model": model,
-            "success": True,
-        }
-    except Exception as e:
-        return {
-            "success": False,
-            "fallback_reason": str(e)
-        }
+        # Stub implementation
+        raise NotImplementedError("AnthropicProvider not fully implemented yet")
 
 def extract_intent(nl_text: str, user_id: str, agent_id: str, capability_id: str) -> dict:
     llm_provider = os.getenv("LLM_PROVIDER", "ollama")
     
+    provider: Optional[IntentExtractorProvider] = None
     if llm_provider == "ollama":
-        result = extract_intent_llm(nl_text, user_id, agent_id, capability_id)
-        if result.get("success"):
-            return result
+        provider = OllamaProvider()
+    elif llm_provider == "anthropic":
+        provider = AnthropicProvider()
+        
+    fallback_reason = "No provider configured"
+    
+    if provider:
+        try:
+            validated = provider.extract(nl_text)
             
-        # Fallback to rule-based
-        fallback_reason = result.get("fallback_reason")
+            approval_threshold = validated.max_amount * 0.7
+            max_daily_spend = validated.max_amount * 1.5
+            
+            cap = AgentCapability(
+                capability_id=capability_id,
+                user_id=user_id,
+                agent_id=agent_id,
+                max_amount=validated.max_amount,
+                max_quantity=max(validated.max_quantity, 1),
+                allowed_categories=validated.allowed_categories,
+                blocked_merchants=validated.blocked_merchants,
+                authorized_merchant=validated.authorized_merchant,
+                approval_threshold=approval_threshold,
+                max_daily_spend=max_daily_spend,
+                expires_at=None,
+                version=1,
+            )
+            
+            return {
+                "capability": asdict(cap),
+                "source_text": nl_text,
+                "extraction_method": "llm",
+                "provider": llm_provider,
+                "model": os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b") if llm_provider == "ollama" else "claude-stub",
+                "success": True,
+            }
+        except Exception as e:
+            fallback_reason = str(e)
     else:
-        fallback_reason = "LLM_PROVIDER not set to ollama"
+        fallback_reason = f"Unknown LLM_PROVIDER: {llm_provider}"
 
     cap = extract_intent_rule_based(nl_text, user_id, agent_id, capability_id)
     return {
