@@ -286,12 +286,16 @@ def get_agents():
     ]
 
 
+@app.get("/policies")
+def get_policies():
+    from dataclasses import asdict
+    return [asdict(cap) for cap in CAPABILITIES.values()]
+
 @app.get("/policies/{policy_id}")
 def get_policy(policy_id: str):
     cap = CAPABILITIES.get(policy_id)
     if not cap:
         raise HTTPException(status_code=404, detail="Policy not found")
-    # Using asdict is not available here directly without import, but cap is a dataclass
     from dataclasses import asdict
     return asdict(cap)
 
@@ -357,8 +361,8 @@ def simulate_attack(scenario: str):
         req = PaymentActionRequest(
             session_id=session_id,
             capability_id=cap_id,
-            amount=65000.0,
-            quantity=3,  # exceeds max_quantity
+            amount=45000.0,
+            quantity=1,  # within max_quantity, so deterministic policy passes
             category="electronics",
             merchant="Amazon",
             merchant_known=True,

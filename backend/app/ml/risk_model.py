@@ -46,8 +46,9 @@ class RiskModel:
             self.available = False
 
     def _vectorize(self, feature_row: dict) -> np.ndarray:
-        vec = np.array([[feature_row[c] for c in FEATURE_COLUMNS]])
-        return self.scaler.transform(vec)
+        import pandas as pd
+        df = pd.DataFrame([{c: feature_row[c] for c in FEATURE_COLUMNS}])
+        return self.scaler.transform(df)
 
     def score(self, event: dict) -> dict:
         feature_row = build_feature_row(event)

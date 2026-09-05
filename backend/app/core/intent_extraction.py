@@ -117,6 +117,7 @@ Output ONLY valid JSON matching this schema:
 Request: "{nl_text}"
 """
     try:
+        timeout_s = float(os.getenv("OLLAMA_TIMEOUT_S", "120.0"))
         response = httpx.post(
             f"{base_url}/api/chat",
             json={
@@ -125,7 +126,7 @@ Request: "{nl_text}"
                 "stream": False,
                 "format": "json"
             },
-            timeout=5.0
+            timeout=timeout_s
         )
         response.raise_for_status()
         result = response.json()
