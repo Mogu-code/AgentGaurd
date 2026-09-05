@@ -25,14 +25,14 @@ export function Transactions({ transactions, openInvestigation }) {
             ) : (
               transactions.map((tx, i) => (
                 <tr key={i} className="clickable-row" onClick={() => openInvestigation(tx)}>
-                  <td className="text-sm">{new Date(tx.timestamp).toLocaleTimeString()}</td>
-                  <td className="font-mono text-secondary text-sm">{tx.request_id?.split('_')[1] || 'N/A'}</td>
-                  <td className="font-medium">{tx.merchant || 'Unknown'}</td>
-                  <td className="font-mono">₹{(tx.amount || 0).toLocaleString()}</td>
-                  <td><DecisionBadge decision={tx.decision} /></td>
+                  <td className="text-sm">{new Date(tx.created_at * 1000).toLocaleTimeString()}</td>
+                  <td className="font-mono text-secondary text-sm">{tx.payload?.request?.request_id?.split('_')[1] || 'N/A'}</td>
+                  <td className="font-medium">{tx.payload?.request?.merchant || 'Unknown'}</td>
+                  <td className="font-mono">₹{(tx.payload?.request?.amount || 0).toLocaleString()}</td>
+                  <td><DecisionBadge decision={tx.payload?.decision?.outcome} /></td>
                   <td>
-                    <span className={`text-xs ${tx.decision === 'ALLOW' ? 'text-blue' : 'text-muted'}`}>
-                      {tx.decision === 'ALLOW' ? 'EXECUTED' : 'SKIPPED'}
+                    <span className={`text-xs ${tx.payload?.decision?.outcome === 'ALLOW' ? 'text-blue' : 'text-muted'}`}>
+                      {tx.payload?.decision?.outcome === 'ALLOW' ? 'EXECUTED' : 'SKIPPED'}
                     </span>
                   </td>
                 </tr>

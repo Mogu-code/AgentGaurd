@@ -47,11 +47,11 @@ export function Audit({ transactions }) {
           <tbody>
             {transactions.map((tx, i) => (
               <tr key={i}>
-                <td className="text-sm">{new Date(tx.timestamp).toLocaleString()}</td>
-                <td className="font-mono text-xs">{tx.request?.request_id || tx.session_id || 'N/A'}</td>
-                <td><DecisionBadge decision={tx.decision?.outcome} /></td>
-                <td className="font-mono text-secondary text-xs" title={tx.hash}>{tx.hash?.substring(0, 16)}...</td>
-                <td className="font-mono text-secondary text-xs" title={tx.prev_hash}>{tx.prev_hash?.substring(0, 16) || 'GENESIS'}</td>
+                <td className="text-sm">{new Date(tx.created_at * 1000).toLocaleString()}</td>
+                <td className="font-mono text-xs">{tx.payload?.request?.request_id || tx.payload?.session_id || 'N/A'}</td>
+                <td><DecisionBadge decision={tx.payload?.decision?.outcome || '-'} /></td>
+                <td className="font-mono text-secondary text-xs" title={tx.this_hash}>{tx.this_hash ? tx.this_hash.substring(0, 16) + '...' : ''}</td>
+                <td className="font-mono text-secondary text-xs" title={tx.prev_hash}>{tx.prev_hash ? (tx.prev_hash === '0000000000000000000000000000000000000000000000000000000000000000' || tx.prev_hash.startsWith('00000000') ? 'GENESIS' : tx.prev_hash.substring(0, 16)) : 'GENESIS'}</td>
               </tr>
             ))}
           </tbody>

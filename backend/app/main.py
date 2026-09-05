@@ -310,9 +310,12 @@ def simulate_attack(scenario: str):
     through the real evaluate pipeline.
     """
     # 1. Ensure we have a base capability for the demo user
-    session_id = "sim_session"
-    cap_id = "sim_cap"
-    user_id = "demo_user"
+    # Use unique IDs per run so demo clicks don't accumulate stale state
+    # (e.g. blowing past daily spend limits on the 3rd click)
+    run_id = uuid.uuid4().hex[:6]
+    session_id = f"sim_session_{run_id}"
+    cap_id = f"sim_cap_{run_id}"
+    user_id = f"demo_user_{run_id}"
     
     # 1. Run ACTUAL extraction flow to get the capability dynamically
     # This prevents the UI from faking the Ollama result.
@@ -320,8 +323,7 @@ def simulate_attack(scenario: str):
     extraction_result = extract_intent(nl_intent, user_id, "sim_agent", cap_id)
     
     # Register the dynamically created capability
-    cap_data = extraction_result.get("capability")
-    from backend.app.core.capability import AgentCapability
+    cap_data = extraction_result.get("capability", {})
     cap = AgentCapability(**cap_data)
     CAPABILITIES[cap_id] = cap
     
