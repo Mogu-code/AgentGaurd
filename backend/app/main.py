@@ -75,15 +75,17 @@ def health_llm():
     if provider == "ollama":
         base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
         try:
-            resp = httpx.get(base_url, timeout=2.0)
-            available = resp.status_code == 200
+            r = httpx.get(f"{base_url}/api/version", timeout=1.0)
+            available = r.status_code == 200
         except Exception:
             available = False
-    return {
-        "provider": provider,
-        "model": model,
-        "available": available
-    }
+    elif provider == "gemini":
+        model = "gemini-1.5-flash"
+        api_key = os.getenv("GEMINI_API_KEY")
+        if api_key and len(api_key) > 5:
+            available = True
+            
+    return {"provider": provider, "model": model, "available": available}
 
 @app.get("/health/razorpay")
 def health_razorpay():

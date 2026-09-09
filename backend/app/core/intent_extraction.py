@@ -149,6 +149,45 @@ class AnthropicProvider:
         # Stub implementation
         raise NotImplementedError("AnthropicProvider not fully implemented yet")
 
+class GeminiProvider:
+    def extract(self, nl_text: str) -> PaymentIntent:
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY not set")
+            
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+        
+        prompt = f"""
+You are an intent extraction engine for a payment gateway.
+Extract the payment constraints from the following natural language request.
+Output ONLY valid JSON matching this schema:
+{{
+  "max_amount": float,
+  "max_quantity": int,
+  "allowed_categories": ["string"],
+  "blocked_merchants": ["string"],
+  "authorized_merchant": "string or null (the ONE merchant named in the request, if any)"
+}}
+
+Request: "{nl_text}"
+"""
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"responseMimeType": "application/json"}
+        }
+        
+        timeout_s = float(os.getenv("OLLAMA_TIMEOUT_S", "10.0"))
+        response = httpx.post(url, json=payload, timeout=timeout_s)
+        response.raise_for_status()
+        
+        result = response.json()
+        try:
+            content = result["candidates"][0]["content"]["parts"][0]["text"]
+            parsed = json.loads(content)
+            return PaymentIntent(**parsed)
+        except (KeyError, IndexError, json.JSONDecodeError) as e:
+            raise ValueError(f"Failed to parse Gemini response: {e}")
+
 def extract_intent(nl_text: str, user_id: str, agent_id: str, capability_id: str) -> dict:
     llm_provider = os.getenv("LLM_PROVIDER", "ollama")
     
@@ -157,6 +196,8 @@ def extract_intent(nl_text: str, user_id: str, agent_id: str, capability_id: str
         provider = OllamaProvider()
     elif llm_provider == "anthropic":
         provider = AnthropicProvider()
+    elif llm_provider == "gemini":
+        provider = GeminiProvider()
         
     fallback_reason = "No provider configured"
     
@@ -187,7 +228,7 @@ def extract_intent(nl_text: str, user_id: str, agent_id: str, capability_id: str
                 "source_text": nl_text,
                 "extraction_method": "llm",
                 "provider": llm_provider,
-                "model": os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b") if llm_provider == "ollama" else "claude-stub",
+                "model": os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b") if llm_provider == "ollama" else ("gemini-1.5-flash" if llm_provider == "gemini" else "claude-stub"),
                 "success": True,
             }
         except Exception as e:
