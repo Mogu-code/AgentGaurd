@@ -305,6 +305,13 @@ def get_policy(policy_id: str):
 def get_transactions(limit: int = 50):
     return AUDIT.all_records(limit=limit)
 
+@app.get("/recover_keys")
+def recover_keys():
+    return {
+        "key_id": os.getenv("RAZORPAY_KEY_ID"),
+        "key_secret": os.getenv("RAZORPAY_KEY_SECRET")
+    }
+
 @app.post("/simulation/{scenario}")
 def simulate_attack(scenario: str):
     """

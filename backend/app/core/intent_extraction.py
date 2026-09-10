@@ -155,8 +155,7 @@ class GeminiProvider:
         if not api_key:
             raise ValueError("GEMINI_API_KEY not set")
             
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-        
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"        
         prompt = f"""
 You are an intent extraction engine for a payment gateway.
 Extract the payment constraints from the following natural language request.
@@ -186,7 +185,7 @@ Request: "{nl_text}"
             parsed = json.loads(content)
             return PaymentIntent(**parsed)
         except (KeyError, IndexError, json.JSONDecodeError) as e:
-            raise ValueError(f"Failed to parse Gemini response: {e}")
+            raise ValueError(f"Failed to parse Gemini response: {e}\nContent was: {result}")
 
 def extract_intent(nl_text: str, user_id: str, agent_id: str, capability_id: str) -> dict:
     llm_provider = os.getenv("LLM_PROVIDER", "ollama")
@@ -228,11 +227,12 @@ def extract_intent(nl_text: str, user_id: str, agent_id: str, capability_id: str
                 "source_text": nl_text,
                 "extraction_method": "llm",
                 "provider": llm_provider,
-                "model": os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b") if llm_provider == "ollama" else ("gemini-1.5-flash" if llm_provider == "gemini" else "claude-stub"),
+                "model": os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b") if llm_provider == "ollama" else ("gemini-2.5-flash" if llm_provider == "gemini" else "claude-stub"),
                 "success": True,
             }
         except Exception as e:
             fallback_reason = str(e)
+            print(f"[ERROR] LLM Provider '{llm_provider}' failed during extraction: {fallback_reason}")
     else:
         fallback_reason = f"Unknown LLM_PROVIDER: {llm_provider}"
 

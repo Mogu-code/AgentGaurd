@@ -17,7 +17,7 @@ export function Overview({ health, metrics, transactions }) {
             <Shield size={12} className="mr-1"/> API: {health.backend ? 'ONLINE' : 'OFFLINE'}
           </span>
           <span className={`badge ${health.ollama ? 'badge-blue' : 'badge-red'}`}>
-            <Brain size={12} className="mr-1"/> OLLAMA: {health.ollama ? 'ONLINE' : 'OFFLINE'}
+            <Brain size={12} className="mr-1"/> LLM: {health.ollama ? 'ONLINE' : 'OFFLINE'}
           </span>
           <span className={`badge ${health.razorpayMode === 'test' && health.razorpayReachable ? 'badge-blue' : 'badge-amber'}`}>
             <CreditCard size={12} className="mr-1"/> RZP: {health.razorpayMode.toUpperCase()}
@@ -38,7 +38,7 @@ export function Overview({ health, metrics, transactions }) {
         <table className="data-table">
           <tbody>
             <tr>
-              <td><span className="font-semibold">Ollama Local LLM</span></td>
+              <td><span className="font-semibold">LLM Provider</span></td>
               <td><span className="text-secondary">Model:</span> <span className="font-mono">{health.ollamaModel}</span></td>
               <td><span className={`badge ${health.ollama ? 'badge-green' : 'badge-red'}`}>{health.ollama ? 'ONLINE' : 'OFFLINE'}</span></td>
             </tr>

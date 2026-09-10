@@ -121,6 +121,86 @@
   font-size: 0.65rem;
 }
 
+/* Cinematic Splash Screen */
+.splash-container {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--bg-main);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+  transition: opacity 0.7s ease-in-out;
+}
+
+.splash-container.closing {
+  opacity: 0;
+}
+
+.splash-logo-wrapper {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 20px;
+  background: rgba(0, 112, 243, 0.05);
+  box-shadow: 0 0 15px rgba(0, 112, 243, 0.1), inset 0 0 10px rgba(0, 112, 243, 0.05);
+  color: var(--primary);
+  animation: cinematicIntro 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.splash-shield-icon {
+  width: 36px;
+  height: 36px;
+  filter: drop-shadow(0 0 8px rgba(0, 112, 243, 0.5));
+}
+
+@keyframes cinematicIntro {
+  0% { transform: scale(0.95); opacity: 0; }
+  10% { transform: scale(1); opacity: 1; box-shadow: 0 0 25px rgba(0, 112, 243, 0.2); }
+  35% { transform: scale(0.97); opacity: 1; box-shadow: 0 0 15px rgba(0, 112, 243, 0.1); }
+  60% { transform: scale(1.05); opacity: 1; box-shadow: 0 0 35px rgba(0, 112, 243, 0.3); }
+  100% { transform: scale(60); opacity: 0; }
+}
+
+/* Dashboard Reveal Transition */
+.app-content-reveal {
+  animation: dashboardReveal 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: 1.8s;
+  opacity: 0;
+  transform: scale(0.98) translateY(10px);
+}
+
+@keyframes dashboardReveal {
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Reduced Motion Override */
+@media (prefers-reduced-motion: reduce) {
+  .splash-logo-wrapper {
+    animation: simpleFade 2s ease-out forwards;
+  }
+  @keyframes simpleFade {
+    0% { opacity: 0; }
+    30% { opacity: 1; }
+    70% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  
+  .app-content-reveal {
+    animation: dashboardRevealSimple 0.8s ease-out forwards;
+    animation-delay: 1.5s;
+  }
+  @keyframes dashboardRevealSimple {
+    to { opacity: 1; transform: none; }
+  }
+}
+
 .status-dot {
   width: 6px;
   height: 6px;
@@ -474,3 +554,4 @@
   font-size: 1.5rem;
   margin-bottom: 1rem;
 }
+

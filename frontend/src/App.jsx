@@ -8,9 +8,11 @@ import { Audit } from './pages/Audit';
 import { Analytics } from './pages/Analytics';
 import { SecurityArchitecture } from './pages/SecurityArchitecture';
 import { fetchHealth, fetchMetrics, fetchTransactions, fetchPolicies } from './api/client';
+import { SplashScreen } from './components/SplashScreen';
 import './App.css';
 
 function App() {
+  const [showSplash, setShowSplash] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [metrics, setMetrics] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -50,29 +52,27 @@ function App() {
 
   // Helper for cross-page navigation from monitor -> investigation
   const openInvestigation = (tx) => {
-    // In our simplified routing, we can't deep link easily without React Router,
-    // but we can send them to the simulator tab where they can run it again.
-    // However, the user asked for "Clicking a transaction opens Investigation".
-    // For this prototype, jumping to 'simulation' tab is adequate, 
-    // or we can implement an activeTx state.
-    // Since Simulator currently handles state execution, we will just alert or switch tab for now.
     setActiveTab('simulation');
   };
 
   return (
-    <div className="app-container">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} health={health} />
+    <>
+      {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
       
-      <div className="main-content">
-        {activeTab === 'overview' && <Overview health={health} metrics={metrics} transactions={transactions} />}
-        {activeTab === 'monitor' && <Transactions transactions={transactions} openInvestigation={openInvestigation} />}
-        {activeTab === 'simulation' && <Simulator />}
-        {activeTab === 'policies' && <Policies policies={policies} />}
-        {activeTab === 'audit' && <Audit transactions={transactions} />}
-        {activeTab === 'analytics' && <Analytics metrics={metrics} />}
-        {activeTab === 'architecture' && <SecurityArchitecture />}
+      <div className="app-container app-content-reveal">
+        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} health={health} />
+        
+        <div className="main-content">
+          {activeTab === 'overview' && <Overview health={health} metrics={metrics} transactions={transactions} />}
+          {activeTab === 'monitor' && <Transactions transactions={transactions} openInvestigation={openInvestigation} />}
+          {activeTab === 'simulation' && <Simulator />}
+          {activeTab === 'policies' && <Policies policies={policies} />}
+          {activeTab === 'audit' && <Audit transactions={transactions} />}
+          {activeTab === 'analytics' && <Analytics metrics={metrics} />}
+          {activeTab === 'architecture' && <SecurityArchitecture />}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
