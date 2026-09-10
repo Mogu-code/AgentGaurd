@@ -80,7 +80,7 @@ def health_llm():
         except Exception:
             available = False
     elif provider == "gemini":
-        model = "gemini-1.5-flash"
+        model = "gemini-2.5-flash"
         api_key = os.getenv("GEMINI_API_KEY")
         if api_key and len(api_key) > 5:
             available = True
