@@ -7,3 +7,7 @@ tests/_test_audit.db
 node_modules/
 *.egg-info/
 .DS_Store
+
+venv/
+.venv/
+dist/
