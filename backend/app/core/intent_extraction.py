@@ -163,7 +163,7 @@ Output ONLY valid JSON matching this schema:
 {{
   "max_amount": float,
   "max_quantity": int,
-  "allowed_categories": ["string"],
+  "allowed_categories": ["string"], // MUST be mapped to one of: electronics, books, groceries, fashion, subscriptions, travel
   "blocked_merchants": ["string"],
   "authorized_merchant": "string or null (the ONE merchant named in the request, if any)"
 }}
