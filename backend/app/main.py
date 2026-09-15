@@ -32,7 +32,17 @@ from backend.app.ml.risk_model import get_risk_model
 from backend.app.razorpay_client import get_razorpay_client, get_razorpay_mode
 
 app = FastAPI(title="AgentPay Guard", version="0.1.0")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware, 
+    allow_origins=[
+        "http://localhost:5173",
+        "https://agentpay-guard.netlify.app",
+        "https://agentpay-guard.onrender.com"
+    ], 
+    allow_credentials=True,
+    allow_methods=["*"], 
+    allow_headers=["*"]
+)
 
 # ---- process-local state (fine for hackathon MVP; see docs/ARCHITECTURE.md for
 # how this maps onto Postgres/Redis in a multi-instance deployment) ----
@@ -305,12 +315,6 @@ def get_policy(policy_id: str):
 def get_transactions(limit: int = 50):
     return AUDIT.all_records(limit=limit)
 
-@app.get("/recover_keys")
-def recover_keys():
-    return {
-        "key_id": os.getenv("RAZORPAY_KEY_ID"),
-        "key_secret": os.getenv("RAZORPAY_KEY_SECRET")
-    }
 
 @app.post("/simulation/{scenario}")
 def simulate_attack(scenario: str):
